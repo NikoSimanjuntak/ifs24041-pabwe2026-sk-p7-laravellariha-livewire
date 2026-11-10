@@ -1,0 +1,20 @@
+# Image CI: PHP 8.3 + ext-gd/zip/mbstring/pdo_mysql + PCOV (coverage) + Node 22 + Composer + Trivy
+FROM php:8.3-cli
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git unzip zip curl ca-certificates gnupg \
+        libzip-dev libpng-dev libjpeg-dev libfreetype6-dev libonig-dev \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j"$(nproc)" gd zip mbstring pdo_mysql bcmath \
+    && pecl install pcov && docker-php-ext-enable pcov \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=aquasec/trivy:0.58.0 /usr/local/bin/trivy /usr/local/bin/trivy
+
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_HOME=/tmp/composer
+
+WORKDIR /app
